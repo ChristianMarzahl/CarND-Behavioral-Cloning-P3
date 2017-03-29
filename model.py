@@ -13,21 +13,25 @@ with open('data/driving_log.csv') as csvfile:
         lines.append(line)
     lines = lines[1:]
 
-#images = []
-#measurements = []
-#for line in lines[1:]:
-#    source_path = line[0]
-#    filename = source_path.split('/')[-1]
-#    current_path = 'data/IMG/'+filename # data/IMG/
-#    image = cv2.imread(current_path)
-#    images.append(image)
-#    measurement = float(line[3])
-#    measurements.append(measurement)
 
+image_counter = 0
+measurements = []
+images = []
+for line in lines[1:]:
+    source_path = line[0]
+    filename = source_path.split('/')[-1]
+    current_path = 'data/IMG/'+filename # data/IMG/
+    image = cv2.imread(current_path)
+    images.append(image)
+    y = measurement = float(line[3])
+    measurements.append(measurement)
+    #cv2.arrowedLine(image,(160,80),(int(160+50*y),80),(0,0,255),3)
+    #cv2.imwrite("temp/test_{0:07d}.png".format(image_counter),image)
 
+    image_counter += 1
 
-#X_train = np.array(images)
-#y_train = np.array(measurements)
+X_train = np.array(images)
+y_train = np.array(measurements)
 
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten, Lambda, SpatialDropout2D
@@ -77,7 +81,7 @@ class ImageDataGenerator(Iterator):
 
         batch_index = 0
         for array_index in index_array:
-            choice = rnd.choice([ImageSelector.Left,ImageSelector.Center,ImageSelector.Right])
+            choice = rnd.choice([ImageSelector.Left,ImageSelector.Center,ImageSelector.Center]) #ImageSelector.Left,ImageSelector.Center,
 
             if self.mode == ImageDataGeneratorMode.Validation:
                 choice = ImageSelector.Center
@@ -91,13 +95,16 @@ class ImageDataGenerator(Iterator):
                       
             # if the loaded image is a left carmera image increase angle by 0.25
             if choice == ImageSelector.Left:
-                angle = angle + 0.25
+                angle = angle - 0.25
             # if the loaded image is a right carmera image deincrease angle by 0.25
             elif choice == ImageSelector.Right:
-                angle = angle - 0.25
+                angle = angle + 0.25
 
             if self.mode == ImageDataGeneratorMode.Train:
                 image, angle = self.select_random_argumentation(image,angle)
+
+            #cv2.arrowedLine(image,(160,80),(int(160+50*angle), 80),(0,0,255),3) # int(80+50*angle)
+            #cv2.imwrite("temp/test_{0:07d}.png".format(array_index),image)
 
             batch_x[batch_index,:,:,:] = image
             batch_y[batch_index] = angle
@@ -107,7 +114,8 @@ class ImageDataGenerator(Iterator):
 
     def select_random_argumentation(self,image, angle):
 
-        choice = rnd.choice([DataArgumentationOptions.Unchanged,DataArgumentationOptions.Brightness,DataArgumentationOptions.Flipp,DataArgumentationOptions.BrightnessAndFlipp])
+        # ,DataArgumentationOptions.Flipp,DataArgumentationOptions.BrightnessAndFlipp
+        choice = rnd.choice([DataArgumentationOptions.Unchanged,DataArgumentationOptions.Brightness])
 
         if choice == DataArgumentationOptions.Brightness:
             return self.random_brightness(image), angle
@@ -131,19 +139,14 @@ import matplotlib.pyplot as plt
 def plot_history(history):
 
     ax1 = plt.plot()
-    plt.title('model accuracy / loss')
+    plt.title('loss')
 
-    plt.plot(history.history['acc'])
-    plt.plot(history.history['val_acc'])
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
 
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train acc', 'test acc', 'train loss', 'test loss' ], loc='upper left')
-
-    ax2 = ax1.twinx()
-    ax2.plot(history.history['loss'])
-    ax2.plot(history.history['val_loss'])
     plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train loss', 'test loss' ], loc='upper left')
 
     plt.show()
 
@@ -173,49 +176,49 @@ def model_nvidia():
     
     model.add(Cropping2D(cropping=((70,25),(1,1)), input_shape = input_shape))
     
-    model.add(Convolution2D(3,1,1,border_mode='valid',name='Color_layer'))
-
-    model.add(Convolution2D(32, 5, 5,
+    model.add(Convolution2D(3,1,1,
                         border_mode='valid',
-                        name = 'conv_1'))
+                        name='Color_layer', init='he_normal'))
+    
+    model.add(Convolution2D(32, kernel_size[0], kernel_size[1],
+                        border_mode='valid',
+                        name = 'conv_2', init='he_normal'))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size = max_pool))
 
-    model.add(Convolution2D(16, 5, 5,
+    model.add(Convolution2D(16, kernel_size[0], kernel_size[1],
                         border_mode='valid',
-                        name='conv_2'))
+                        name='conv_3', init='he_normal'))
     model.add(Activation('relu'))
-    model.add(Convolution2D(8, 3, 3,
+    model.add(Convolution2D(8, kernel_size[0], kernel_size[1],
                         border_mode='valid',
-                        name='conv_3'))
+                        name='conv_4', init='he_normal'))
                             
     model.add(Activation('relu'))
-    model.add(Convolution2D(4, 3, 3,
+    model.add(Convolution2D(4, kernel_size[0], kernel_size[1],
                         border_mode='valid',
-                        name='conv_4'))
+                        name='conv_5', init='he_normal'))
     
     model.add(Activation('relu'))
 
 
     model.add(Flatten())
     
-    model.add(Dense(256))
+    model.add(Dense(128))
     model.add(Activation('relu'))
 
-    model.add(Dense(100))
+    model.add(Dense(64))
     model.add(Activation('relu'))
-    model.add(Dropout(drop_out))
+    model.add(Dropout(0.5))
+    model.add(Dense(32))
+    model.add(Activation('relu'))
 
-    model.add(Dense(50))
+    model.add(Dense(16))
     model.add(Activation('relu'))
-
-    model.add(Dense(10))
-    model.add(Activation('relu'))
-    model.add(Dropout(drop_out))
+    model.add(Dropout(0.5))
     
     model.add(Dense(1))
     return model
-
 
 train_generator = ImageDataGenerator(lines)
 validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
@@ -227,11 +230,14 @@ model.compile(loss='mse', optimizer='adam')
 checkpoint = ModelCheckpoint('model_1.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint]
 
-history = model.fit_generator(train_generator,
-                    validation_data= validation_generator,
-                    samples_per_epoch = len(lines), 
-                    callbacks=callbacks_list,
-                    nb_epoch=10, 
-                    nb_val_samples=len(lines)*0.25) 
+
+history = model.fit(X_train,y,validation_split=0.2,callbacks=callbacks_list)
+
+#history = model.fit_generator(train_generator,
+#                    validation_data= validation_generator,
+#                    samples_per_epoch = len(lines), 
+#                    callbacks=callbacks_list,
+#                    nb_epoch=5, 
+#                    nb_val_samples=len(lines)*0.25) 
 
 plot_history(history)
