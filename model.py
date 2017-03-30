@@ -14,21 +14,52 @@ with open('data/driving_log.csv') as csvfile:
     lines = lines[1:]
 
 
-image_counter = 0
-measurements = []
-images = []
-for line in lines[1:]:
-    source_path = line[0]
-    filename = source_path.split('/')[-1]
-    current_path = 'data/IMG/'+filename # data/IMG/
-    image = cv2.imread(current_path)
-    images.append(image)
-    y = measurement = float(line[3])
-    measurements.append(measurement)
-    #cv2.arrowedLine(image,(160,80),(int(160+50*y),80),(0,0,255),3)
-    #cv2.imwrite("temp/test_{0:07d}.png".format(image_counter),image)
+#image_counter = 0
+#measurements = []
+#images = []
+#for line in lines[1:]:
+#    source_path = line[0]
+#    filename = source_path.split('/')[-1]
+#    current_path = 'data/IMG/'+filename # data/IMG/
+#    image = cv2.imread(current_path)
+#    images.append(image)
+#    measurement = float(line[3])
+#    measurements.append(measurement)
+#    #cv2.arrowedLine(image,(160,80),(int(160+50*y),80),(0,0,255),3)
+#    #cv2.imwrite("temp/test_{0:07d}.png".format(image_counter),image)
 
-    image_counter += 1
+##X_eval = np.array(images)
+##y_eval = np.array(measurements)
+
+#for line in lines[1:]:
+#    source_path = line[0]
+#    filename = source_path.split('/')[-1]
+#    current_path = 'data/IMG/'+filename # data/IMG/
+#    image = cv2.imread(current_path)
+#    image = np.fliplr(image)
+#    images.append(image)
+#    measurement = -float(line[3])
+#    measurements.append(measurement)
+
+## use left image 1
+#for line in lines[1:]:
+#    source_path = line[1]
+#    filename = source_path.split('/')[-1]
+#    current_path = 'data/IMG/'+filename # data/IMG/
+#    image = cv2.imread(current_path)
+#    images.append(image)
+#    measurement = float(line[3]) - 0.25 
+#    measurements.append(measurement)
+
+## use right image 2
+#for line in lines[1:]:
+#    source_path = line[2]
+#    filename = source_path.split('/')[-1]
+#    current_path = 'data/IMG/'+filename # data/IMG/
+#    image = cv2.imread(current_path)
+#    images.append(image)
+#    measurement = float(line[3]) + 0.25 
+#    measurements.append(measurement)
 
 X_train = np.array(images)
 y_train = np.array(measurements)
@@ -135,20 +166,20 @@ class ImageDataGenerator(Iterator):
         return np.fliplr(image), -angle
 
                                                      
-import matplotlib.pyplot as plt
-def plot_history(history):
+#import matplotlib.pyplot as plt
+#def plot_history(history):
 
-    ax1 = plt.plot()
-    plt.title('loss')
+#    ax1 = plt.plot()
+#    plt.title('loss')
 
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
+#    plt.plot(history.history['loss'])
+#    plt.plot(history.history['val_loss'])
 
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train loss', 'test loss' ], loc='upper left')
+#    plt.ylabel('loss')
+#    plt.xlabel('epoch')
+#    plt.legend(['train loss', 'test loss' ], loc='upper left')
 
-    plt.show()
+#    plt.show()
 
 
 def model_simple():
@@ -190,6 +221,7 @@ def model_nvidia():
                         border_mode='valid',
                         name='conv_3', init='he_normal'))
     model.add(Activation('relu'))
+
     model.add(Convolution2D(8, kernel_size[0], kernel_size[1],
                         border_mode='valid',
                         name='conv_4', init='he_normal'))
@@ -220,24 +252,25 @@ def model_nvidia():
     model.add(Dense(1))
     return model
 
-train_generator = ImageDataGenerator(lines)
+train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
 validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
 
 model = model_nvidia()
 model.compile(loss='mse', optimizer='adam')
 
 
-checkpoint = ModelCheckpoint('model_1.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint('model_3.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint]
 
 
-history = model.fit(X_train,y,validation_split=0.2,callbacks=callbacks_list)
+#history = model.fit(X_train,y_train, validation_split=0.2,callbacks=callbacks_list, epochs=10)
+#print(history)
 
-#history = model.fit_generator(train_generator,
-#                    validation_data= validation_generator,
-#                    samples_per_epoch = len(lines), 
-#                    callbacks=callbacks_list,
-#                    nb_epoch=5, 
-#                    nb_val_samples=len(lines)*0.25) 
+history = model.fit_generator(train_generator,
+                    validation_data= validation_generator,
+                    samples_per_epoch = len(lines), 
+                    callbacks=callbacks_list,
+                    nb_epoch=5, 
+                    nb_val_samples=2000) 
 
-plot_history(history)
+#plot_history(history)
