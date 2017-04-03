@@ -7,7 +7,7 @@ from enum import Enum
 # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
 
 lines = []
-with open('data/driving_log.csv') as csvfile:
+with open('data/driving_log_initial.csv') as csvfile:
     reader = csv.reader(csvfile)
     for line in reader:
         lines.append(line) 
@@ -59,7 +59,7 @@ class ImageDataGenerator(Iterator):
         hist_array = np.sort(hist)[::-1]
         # select lines with the values arround zero  np.take(zero_list,[1,2,5],axis=1)
         zero_list = [line for line in lines if float(line[3]) > bin_edges[max_index-1] and float(line[3]) < bin_edges[max_index+1]]
-        index_list = np.random.random_integers(0,hist_array[0]-1,3 * hist_array[1])
+        index_list = np.random.random_integers(0,hist_array[0]-1,1 * hist_array[1])
         # take the same number of near zero lines as the second most angle range
         zero_list = np.take(zero_list,index_list,axis=0)
         non_zero_list = np.array([line for line in lines if float(line[3]) < bin_edges[max_index-1] or float(line[3]) > bin_edges[max_index+1]])
@@ -130,20 +130,20 @@ class ImageDataGenerator(Iterator):
         return cv2.flip(image,1), angle * -1
 
                                                      
-import matplotlib.pyplot as plt
-def plot_history(history):
+#import matplotlib.pyplot as plt
+#def plot_history(history):
 
-    ax1 = plt.plot()
-    plt.title('loss')
+#    ax1 = plt.plot()
+#    plt.title('loss')
 
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
+#    plt.plot(history.history['loss'])
+#    plt.plot(history.history['val_loss'])
 
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train loss', 'test loss' ], loc='upper left')
+#    plt.ylabel('loss')
+#    plt.xlabel('epoch')
+#    plt.legend(['train loss', 'test loss' ], loc='upper left')
 
-    plt.show()
+#    plt.show()
 
 
 def model_simple():
@@ -260,17 +260,17 @@ for image_batch, angle_batch in train_generator:
     if(counter == 20):
         break;
     
-n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
+#n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
 
-plt.axis([min(anlges), max(anlges), 0, max(n)])
-plt.show()
+#plt.axis([min(anlges), max(anlges), 0, max(n)])
+#plt.show()
 
 
 model = model_commaai()
 model.compile(loss='mse', optimizer='adam')
 
 
-checkpoint = ModelCheckpoint('model_4.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint('model_5.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint]
 
 
@@ -281,7 +281,7 @@ history = model.fit_generator(train_generator,
                     validation_data= validation_generator,
                     samples_per_epoch = len(lines), 
                     callbacks=callbacks_list,
-                    nb_epoch=20,
+                    nb_epoch=7,
                     nb_val_samples=len(lines)*0.2) 
 
-plot_history(history)
+#plot_history(history)
