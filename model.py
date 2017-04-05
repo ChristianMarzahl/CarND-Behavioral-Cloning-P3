@@ -7,17 +7,18 @@ from enum import Enum
 # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
 
 lines = []
-with open('data/driving_log_initial.csv') as csvfile:
+with open('data/driving_log_erste_phase.csv') as csvfile:
     reader = csv.reader(csvfile)
     for line in reader:
         lines.append(line) 
     lines = lines[1:]
 
+
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten, Lambda, SpatialDropout2D, ELU
 from keras.layers import Convolution2D, MaxPooling2D, Cropping2D
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras.utils import np_utils
 from keras import backend as K
 from keras.preprocessing.image import Iterator
@@ -53,13 +54,13 @@ class ImageDataGenerator(Iterator):
         csv_lines = np.array(csv_lines)
 
         # calculate histogram  
-        hist, bin_edges = np.histogram(np.array(csv_lines[:,3],dtype=float), bins=50, density=False)
+        hist, bin_edges = np.histogram(np.array(csv_lines[:,3],dtype=float), bins=51, density=False)
         max_index = np.argmax(hist)
 
         hist_array = np.sort(hist)[::-1]
         # select lines with the values arround zero  np.take(zero_list,[1,2,5],axis=1)
         zero_list = [line for line in lines if float(line[3]) > bin_edges[max_index-1] and float(line[3]) < bin_edges[max_index+1]]
-        index_list = np.random.random_integers(0,hist_array[0]-1,1 * hist_array[1])
+        index_list = np.random.random_integers(0,hist_array[0]-1,hist_array[1])
         # take the same number of near zero lines as the second most angle range
         zero_list = np.take(zero_list,index_list,axis=0)
         non_zero_list = np.array([line for line in lines if float(line[3]) < bin_edges[max_index-1] or float(line[3]) > bin_edges[max_index+1]])
@@ -72,39 +73,44 @@ class ImageDataGenerator(Iterator):
         with self.lock:
             index_array, current_index, current_batch_size = next(self.index_generator)
 
-        batch_x = np.zeros(shape=(current_batch_size, IMAGE_ROW, IMAGE_COL, IMAGE_CH), dtype=np.float32)
-        batch_y = np.zeros(shape=(current_batch_size))
+        batch_x = np.zeros(shape=(3*current_batch_size, IMAGE_ROW, IMAGE_COL, IMAGE_CH), dtype=np.float32)
+        batch_y = np.zeros(shape=(3*current_batch_size))
 
         batch_index = 0
         for array_index in index_array:
-            choice = rnd.choice([ImageSelector.Left,ImageSelector.Right,ImageSelector.Center]) #ImageSelector.Left,ImageSelector.Center,
+            #choice = rnd.choice([ImageSelector.Left,ImageSelector.Right,ImageSelector.Center])
 
-            if self.mode == ImageDataGeneratorMode.Validation:
-                choice = ImageSelector.Center
+            for choice in ImageSelector:
 
-            source_path = self.csv[array_index][choice.value[0]]
-            filename = source_path.split('/')[-1]
-            current_path = 'data/IMG/'+filename
-            image = cv2.imread(current_path)
+                source_path = self.csv[array_index][choice.value[0]]
+                filename = source_path.split('/')[-1]
+                current_path = 'G:/Training/TrainingsDatensatz/' + 'data/IMG/'+filename
+                image = cv2.imread(current_path)
 
-            angle =  float(self.csv[array_index][3])
+                angle =  float(self.csv[array_index][3])
                       
-            # if the loaded image is a left carmera image increase angle by 0.25
-            if choice == ImageSelector.Left:
-                angle = angle + 0.25
-            # if the loaded image is a right carmera image deincrease angle by 0.25
-            elif choice == ImageSelector.Right:
-                angle = angle - 0.25
+                # if the loaded image is a left carmera image increase angle by 0.25
+                if choice == ImageSelector.Left:
+                    if angle + 0.25 > 1:
+                        angle = 1
+                    else: 
+                        angle = angle + 0.25
+                # if the loaded image is a right carmera image deincrease angle by 0.25
+                elif choice == ImageSelector.Right:
+                    if angle - 0.25 < -1:
+                        angle = -1
+                    else: 
+                        angle = angle - 0.25
 
-            if self.mode == ImageDataGeneratorMode.Train:
-                image, angle = self.select_random_argumentation(image,angle)
+                if self.mode == ImageDataGeneratorMode.Train:
+                    image, angle = self.select_random_argumentation(image,angle)
 
-            #cv2.arrowedLine(image,(160,80),(int(160+50*angle), 80),(0,0,255),3) # int(80+50*angle)
-            #cv2.imwrite("temp/test_{0:07d}.png".format(array_index),image)
+                #cv2.arrowedLine(image,(160,80),(int(160+50*angle), 80),(0,0,255),3) # int(80+50*angle)
+                #cv2.imwrite("temp/test_{0:07d}.png".format(array_index),image)
 
-            batch_x[batch_index,:,:,:] = (image / 255.) - 0.5
-            batch_y[batch_index] = angle
-            batch_index += 1
+                batch_x[batch_index,:,:,:] = (image / 255.) - 0.5
+                batch_y[batch_index] = angle
+                batch_index += 1
 
         return batch_x,batch_y
 
@@ -130,20 +136,20 @@ class ImageDataGenerator(Iterator):
         return cv2.flip(image,1), angle * -1
 
                                                      
-#import matplotlib.pyplot as plt
-#def plot_history(history):
+import matplotlib.pyplot as plt
+def plot_history(history):
 
-#    ax1 = plt.plot()
-#    plt.title('loss')
+    ax1 = plt.plot()
+    plt.title('loss')
 
-#    plt.plot(history.history['loss'])
-#    plt.plot(history.history['val_loss'])
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
 
-#    plt.ylabel('loss')
-#    plt.xlabel('epoch')
-#    plt.legend(['train loss', 'test loss' ], loc='upper left')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train loss', 'test loss' ], loc='upper left')
 
-#    plt.show()
+    plt.show()
 
 
 def model_simple():
@@ -247,7 +253,7 @@ def model_nvidia():
     return model
 
 train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
-validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
+validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train) #Validation
 
 
 anlges = []
@@ -257,21 +263,24 @@ for image_batch, angle_batch in train_generator:
         anlges.append(angle)
     counter += 1
 
-    if(counter == 20):
+    if(counter == 5):
         break;
     
-#n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
+n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
 
-#plt.axis([min(anlges), max(anlges), 0, max(n)])
-#plt.show()
+plt.axis([min(anlges), max(anlges), 0, max(n)])
+plt.show()
 
 
 model = model_commaai()
-model.compile(loss='mse', optimizer='adam')
 
+model.compile(loss='mse', optimizer=Adam(lr=0.001))
 
+earlyStopping = EarlyStopping(monitor='val_loss', min_delta= 0.001, patience=2, verbose=2, mode='min')
 checkpoint = ModelCheckpoint('model_5.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-callbacks_list = [checkpoint]
+csv_logger = CSVLogger('train_stats.csv')
+
+callbacks_list = [checkpoint, earlyStopping, csv_logger]
 
 
 #history = model.fit(X_train,y_train, validation_split=0.2,callbacks=callbacks_list)
@@ -279,9 +288,9 @@ callbacks_list = [checkpoint]
 
 history = model.fit_generator(train_generator,
                     validation_data= validation_generator,
-                    samples_per_epoch = len(lines), 
+                    samples_per_epoch = 2*len(lines), 
                     callbacks=callbacks_list,
-                    nb_epoch=7,
-                    nb_val_samples=len(lines)*0.2) 
+                    nb_epoch=15,
+                    validation_steps=10) 
 
 #plot_history(history)
