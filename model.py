@@ -7,7 +7,7 @@ from enum import Enum
 # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
 
 lines = []
-with open('data/driving_log_erste_phase.csv') as csvfile:
+with open('data/driving_log_initial.csv') as csvfile:
     reader = csv.reader(csvfile)
     for line in reader:
         lines.append(line) 
@@ -32,7 +32,7 @@ class DataArgumentationOptions(Enum):
     Unchanged = 1,
     Brightness = 2,
     Flipp = 3,
-    BrightnessAndFlipp = 4
+    Shadow = 4
 
 
 class ImageSelector(Enum):
@@ -43,6 +43,10 @@ class ImageSelector(Enum):
 class ImageDataGeneratorMode(Enum):
     Train = 0,
     Validation = 1
+
+class ShadowType(Enum):
+    Bright = 0,
+    Dark = 1
 
 # https://srikanthpagadala.github.io/serve/carnd-behavioral-cloning-p3-report.html
 # https://www.kaggle.com/raghakot/ultrasound-nerve-segmentation/easier-keras-imagedatagenerator
@@ -84,8 +88,9 @@ class ImageDataGenerator(Iterator):
 
                 source_path = self.csv[array_index][choice.value[0]]
                 filename = source_path.split('/')[-1]
-                current_path = 'G:/Training/TrainingsDatensatz/' + 'data/IMG/'+filename
+                current_path = 'data/IMG/'+filename  # 'G:/Training/TrainingsDatensatz/' + 
                 image = cv2.imread(current_path)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
 
                 angle =  float(self.csv[array_index][3])
                       
@@ -108,48 +113,74 @@ class ImageDataGenerator(Iterator):
                 #cv2.arrowedLine(image,(160,80),(int(160+50*angle), 80),(0,0,255),3) # int(80+50*angle)
                 #cv2.imwrite("temp/test_{0:07d}.png".format(array_index),image)
 
-                batch_x[batch_index,:,:,:] = (image / 255.) - 0.5
+                batch_x[batch_index,:,:,:] =  (image / 255.) - 0.5
                 batch_y[batch_index] = angle
                 batch_index += 1
 
         return batch_x,batch_y
 
     def select_random_argumentation(self,image, angle):
+        choiceList = rnd.sample([DataArgumentationOptions.Unchanged,
+                             DataArgumentationOptions.Flipp, 
+                             DataArgumentationOptions.Brightness,
+                             DataArgumentationOptions.Shadow],rnd.randint(1,3)) 
 
-        choice = rnd.choice([DataArgumentationOptions.Unchanged,DataArgumentationOptions.Flipp, DataArgumentationOptions.Brightness,DataArgumentationOptions.BrightnessAndFlipp]) 
+        for choice in choiceList:
+            if choice == DataArgumentationOptions.Unchanged:
+                break
+            elif choice == DataArgumentationOptions.Brightness:
+                image = self.random_brightness(image)
+            elif choice == DataArgumentationOptions.Flipp:
+                image, angle = self.random_flipp(image,angle)
+            elif choice == DataArgumentationOptions.Shadow:
+                image = self.random_shadow(image)
 
-        if choice == DataArgumentationOptions.Brightness:
-            return self.random_brightness(image), angle
-        elif choice == DataArgumentationOptions.Flipp:
-            return self.random_flipp(image,angle)
-        elif choice == DataArgumentationOptions.BrightnessAndFlipp:
-            image = self.random_brightness(image)
-            return self.random_flipp(image,angle)
         return image, angle
     
-    def random_brightness(self,image, lower_range = 0.5, upper_range = 0.5):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) #convert image to hsv color space
-        hsv[:,:,2] = hsv[:,:,2] * (lower_range + rnd.uniform(0.0,upper_range))
-        return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    def random_brightness(self, image, lower_range = 0.2, upper_range = 0.2):
+        y_channel = image[:,:,0]
+        value = np.random.randint(-int(255.0 * lower_range)  , int(255.0 * upper_range))
+        y_channel = (y_channel + value).astype(np.uint8)
+        image[:,:,0] = y_channel
+
+        return image 
 
     def random_flipp(self,image,angle):
         return cv2.flip(image,1), angle * -1
 
+    def random_shadow(self, image, alpha_range = 0.2):
+        
+        shadow_image = np.zeros(image.shape[0:2],np.uint8)
+
+        shadow_border_points_count = 6
+        shape_points = np.random.uniform(0,image.shape[0],(shadow_border_points_count,2)).astype(np.int32) + (np.random.randint(0,image.shape[0]),0) 
+        cv2.fillConvexPoly(shadow_image, shape_points, 255)
+
+        if np.random.choice([ShadowType.Bright,ShadowType.Dark]) == ShadowType.Bright:
+            shadow_image = 255 - shadow_image
+        
+        shadow_alpha = np.random.uniform(0,alpha_range)
+        image[:,:,0] = cv2.addWeighted(image[:,:,0],1. - shadow_alpha,shadow_image,shadow_alpha,0)
+
+        return image
+
+
+
                                                      
-import matplotlib.pyplot as plt
-def plot_history(history):
+#import matplotlib.pyplot as plt
+#def plot_history(history):
 
-    ax1 = plt.plot()
-    plt.title('loss')
+#    ax1 = plt.plot()
+#    plt.title('loss')
 
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
+#    plt.plot(history.history['loss'])
+#    plt.plot(history.history['val_loss'])
 
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train loss', 'test loss' ], loc='upper left')
+#    plt.ylabel('loss')
+#    plt.xlabel('epoch')
+#    plt.legend(['train loss', 'test loss' ], loc='upper left')
 
-    plt.show()
+#    plt.show()
 
 
 def model_simple():
@@ -206,6 +237,26 @@ def model_commaai():
   
     return model
 
+def model_commaai_small():
+
+    input_shape = (IMAGE_ROW,IMAGE_COL, IMAGE_CH)
+
+    model = Sequential()
+    model.add(Cropping2D(cropping=((70,25),(1,1)), input_shape = input_shape))
+    model.add(Convolution2D(4, 8, 8, subsample=(4, 4), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(8, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(16, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(Flatten())
+    model.add(Dropout(.2))
+    model.add(ELU())
+    model.add(Dense(125))
+    model.add(Dropout(.5))
+    model.add(ELU())
+    model.add(Dense(1))
+  
+    return model
 
 
 # https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/
@@ -253,31 +304,31 @@ def model_nvidia():
     return model
 
 train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
-validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train) #Validation
+validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation) #Validation
 
 
-anlges = []
-counter = 0
-for image_batch, angle_batch in train_generator:
-    for angle in angle_batch:
-        anlges.append(angle)
-    counter += 1
+#anlges = []
+#counter = 0
+#for image_batch, angle_batch in train_generator:
+#    for angle in angle_batch:
+#        anlges.append(angle)
+#    counter += 1
 
-    if(counter == 5):
-        break;
+#    if(counter == 5):
+#        break;
     
-n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
+#n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
 
-plt.axis([min(anlges), max(anlges), 0, max(n)])
-plt.show()
+#plt.axis([min(anlges), max(anlges), 0, max(n)])
+#plt.show()
 
 
 model = model_commaai()
 
 model.compile(loss='mse', optimizer=Adam(lr=0.001))
 
-earlyStopping = EarlyStopping(monitor='val_loss', min_delta= 0.001, patience=2, verbose=2, mode='min')
-checkpoint = ModelCheckpoint('model_5.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+earlyStopping = EarlyStopping(monitor='val_loss', min_delta= 0.001, patience=3, verbose=2, mode='min')
+checkpoint = ModelCheckpoint('model_7.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 csv_logger = CSVLogger('train_stats.csv')
 
 callbacks_list = [checkpoint, earlyStopping, csv_logger]
@@ -288,9 +339,9 @@ callbacks_list = [checkpoint, earlyStopping, csv_logger]
 
 history = model.fit_generator(train_generator,
                     validation_data= validation_generator,
-                    samples_per_epoch = 2*len(lines), 
+                    samples_per_epoch = len(lines), 
                     callbacks=callbacks_list,
-                    nb_epoch=15,
+                    nb_epoch=10,
                     validation_steps=10) 
 
 #plot_history(history)
