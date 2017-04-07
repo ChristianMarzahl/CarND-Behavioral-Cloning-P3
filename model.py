@@ -44,6 +44,7 @@ class ImageDataGeneratorMode(Enum):
     Train = 0,
     Validation = 1
 
+# https://github.com/jeremy-shannon/CarND-Behavioral-Cloning-Project/blob/master/model.py
 # https://srikanthpagadala.github.io/serve/carnd-behavioral-cloning-p3-report.html
 # https://www.kaggle.com/raghakot/ultrasound-nerve-segmentation/easier-keras-imagedatagenerator
 class ImageDataGenerator(Iterator):
@@ -256,20 +257,29 @@ train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
 validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train) #Validation
 
 
-anlges = []
-counter = 0
-for image_batch, angle_batch in train_generator:
-    for angle in angle_batch:
-        anlges.append(angle)
-    counter += 1
+#anlges = []
+#counter = 0
+#array_index = 0
+#for image_batch, angle_batch in train_generator:
+#    for image, angle in zip(image_batch, angle_batch):
+#        anlges.append(angle)
 
-    if(counter == 5):
-        break;
+#        image = (image + 0.5) * 255
+#        cv2.arrowedLine(image,(160,320),(int(160+50 * (3 * angle)), 80),(0,0,255),3) # int(80+50*angle)
+#        cv2.imwrite("temp/test_{0:07d}.png".format(array_index),image)
+#        array_index += 1
+
+#    counter += 1
+
+#    if(counter == 5):
+#        break;
     
-n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
+#n, bins, patches = plt.hist(anlges, 50, normed=1, facecolor='green', alpha=0.75)
 
-plt.axis([min(anlges), max(anlges), 0, max(n)])
-plt.show()
+#plt.axis([min(anlges), max(anlges), 0, max(n)])
+#plt.show()
+
+
 
 
 model = model_commaai()
