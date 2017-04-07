@@ -11,6 +11,7 @@ import eventlet.wsgi
 from PIL import Image
 from flask import Flask
 from io import BytesIO
+import cv2
 
 from keras.models import load_model
 import h5py
@@ -60,11 +61,13 @@ def telemetry(sid, data):
         # The current image from the center camera of the car
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
-        image_array = (np.asarray(image) / 255.) - 0.5
+        image_array = np.asarray(image) # (np.asarray(image) / 255.) - 0.5
+        image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2YUV)
+        image_array =  (image_array / 255.) - 0.5 
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
 
         throttle = controller.update(float(speed))
-
+        #throttle = 1
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
 
@@ -100,7 +103,7 @@ if __name__ == '__main__':
         'model',
         type=str,
         help='Path to model h5 file. Model should be on the same path.',
-        default='model_2.h5'
+        default='model_5.h5'
        
     )
     parser.add_argument(
