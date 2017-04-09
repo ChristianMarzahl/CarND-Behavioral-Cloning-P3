@@ -28,11 +28,19 @@
     <Compile Include="video.py" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="data\driving_log_initial.csv" />
+    <Content Include="data\christian_track_2.csv" />
     <Content Include="data\driving_log.csv" />
-    <Content Include="data\driving_log_erste_phase.csv" />
-    <Content Include="examples\placeholder.png" />
-    <Content Include="examples\placeholder_small.png" />
+    <Content Include="data\driving_log_start_track2_3.csv" />
+    <Content Include="data\driving_log_track2_bridgedown.csv" />
+    <Content Include="data\driving_log_track2_com.csv" />
+    <Content Include="data\driving_log_track2_downhill_again.csv" />
+    <Content Include="data\driving_log_track2_downhill_again2.csv" />
+    <Content Include="data\driving_log_track2_uphill.csv" />
+    <Content Include="data\driving_log_track_2_start.csv" />
+    <Content Include="data\driving_log_svenja.csv" />
+    <Content Include="data\driving_log_track_sharp_turn.csv" />
+    <Content Include="data\IMG_start_track2_1.csv" />
+    <Content Include="model.h5" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="data\IMG\" />

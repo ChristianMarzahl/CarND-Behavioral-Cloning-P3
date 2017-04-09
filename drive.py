@@ -48,7 +48,6 @@ controller = SimplePIController(0.1, 0.002)
 set_speed = 9
 controller.set_desired(set_speed)
 
-
 @sio.on('telemetry')
 def telemetry(sid, data):
     if data:
@@ -63,11 +62,16 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image) # (np.asarray(image) / 255.) - 0.5
         image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2YUV)
+        image = image_array
         image_array =  (image_array / 255.) - 0.5 
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
 
+        #timestamp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-3]
+        #image = cv2.cvtColor(image, cv2.COLOR_YUV2BGR)
+        #cv2.imwrite("temp/test_{0}.png".format(timestamp),image) 
+        
         throttle = controller.update(float(speed))
-        #throttle = 1
+        #throttle = 0.1
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
 
