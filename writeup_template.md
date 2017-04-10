@@ -36,8 +36,9 @@ The model.py file contains the code for training and saving the convolution neur
 ##### 3. ImageDataGenerator 
 
 Tue to memory restriction and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
-Because the training data is heavily biased towards a centered steering angle as shown in the following image ![Biased Data][image1]. 
-I used a couple of augmentation approaches to compensate for that. 
+Because the training data is heavily biased towards a centered steering angle as shown in the following image. I used a couple of augmentation approaches to compensate for that. 
+
+![Biased Data][image1] 
 
 1. ##### Steering angle histogramm
 I generated from all angles a histogram with 51 bins. And selected just as many images with with most common steering angle as are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
