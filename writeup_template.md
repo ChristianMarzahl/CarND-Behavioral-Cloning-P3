@@ -20,7 +20,7 @@
 My project includes the following files:
 * model.py containing the script to create and train the model and performe the data augmentation 
 * drive.py for driving the car in autonomous mode
-* final_model.h5 containing a trained convolution neural network 
+* final_model.h5 containing a trained Commaai convolution neural network 
 * writeup_report.md summarizing the results
 
 #### 1. Submission includes functional code
@@ -31,16 +31,16 @@ python drive.py final_model.h5
 
 #### 2. Submission code
 
-The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition the file contains the code for the image data generator to argument the training images
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition the file contains the code for the image data generator to augment the training images
 
 ##### 3. ImageDataGenerator 
 
-Tue to memory restriciton and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
-Because the training data is heavily biased towords a centered stering angle as shown in the following image ![Biased Data][image1]. 
+Tue to memory restriction and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
+Because the training data is heavily biased towards a centered steering angle as shown in the following image ![Biased Data][image1]. 
 I used a couple of augmentation approaches to compensate for that. 
 
-1. ##### Stering angle histogramm
-I generated from all angles a histogramm with 51 bins. And selected just as many images with with most common stering angle as are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
+1. ##### Steering angle histogramm
+I generated from all angles a histogram with 51 bins. And selected just as many images with with most common steering angle as are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
 
 ```python
         # calculate histogram  
@@ -57,7 +57,7 @@ I generated from all angles a histogramm with 51 bins. And selected just as many
 ```
 
 2. ##### Flip 
-The first track is a circle with a high bias towards left stering angles. By randomly fliping images the effect is filtered out.
+The first track is a circle with a high bias towards left steering angles. By randomly flipping images the effect is filtered out.
 
 ```python
     def random_flipp(self,image,angle):
@@ -103,8 +103,8 @@ To make the model more robust to brightness changes and shadows on the road I ad
 
 4. ##### Left and right Images
 
-Each line in the csv file contains additonaly a left and right camera image. I used this files to additionaly increase my trainig size. 
-For left images the stering angle is increased by 0.25 for right images the angle is decreased by the same factor. 
+Each line in the csv file contains a left and right camera image. I used this files to additionally increase my training size. 
+For left images the steering angle is increased by 0.25 for right images the angle is decreased by the same factor. 
 
 ```python
                 # if the loaded image is a left carmera image increase angle by 0.25
@@ -124,7 +124,7 @@ For left images the stering angle is increased by 0.25 for right images the angl
 
 5. ##### Random augmentation selection
 
-Each image is augmentated by up to three augmentation strategies per image. Results are shown in the following gif file.
+Each image is augmented by up to three augmentation strategies per image. Results are shown in the following gif file.
 
 ![Combined Augmentation][image40]
 
@@ -150,13 +150,16 @@ Each image is augmentated by up to three augmentation strategies per image. Resu
         return image, angle
 ```
 
+6. ##### Color Space
 
+As recommended by NVIDIA I used the YUV colorspace. 
+ 
 
 ### Model Architecture and Training Strategy
 
 #### 1. Model architecture
 
-In my attempts to find a model that can well performe on both tracks I tryed some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the diffrent color channel order in the drive.py (RGB vs BGR) I figured out that the used model architeture was not importend and both models were able to run both tracks successfuly. Finaly I used the Commaai mode.
+In my attempts to find a model that can well perform on both tracks I tried some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the different color channel order in the drive.py (RGB vs BGR) I figured out that the used model architecture was not important and both models were able to run both tracks successfully. Finally I used the Commaai mode.
  
  
 | Layer (type)             |    Output Shape           |   Param  | Hint  |   
@@ -177,11 +180,13 @@ In my attempts to find a model that can well performe on both tracks I tryed som
 | dense_2 (Dense)         |     (None, 1)            |     513   |   |   
 
 
+
+
 #### 2. Overfitting
 
 The model contains dropout layers in order to reduce overfitting. 
 
-The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be agumented in the Validation mode not. That was used to ensure that the model was not overfitting.
+The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be augmented, in the Validation mode not. That was used to ensure that the model was not overfitting.
 
 ```python
         train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
@@ -192,7 +197,10 @@ The model was tested by running it through the simulator and ensuring that the v
 
 #### 3. Model parameter tuning
 
-The model used an adam optimizer, with the default learning rate from 0.001.
+The model used an adam optimizer, with the default learning rate from 0.001. The batch size was 128, the samples per epoch are the count of lines in the csv file and teen validation steps are performed after each epoch. The number of epochs was 15 but I used model checkpoints to save the best model and early stopping with a patience of 4 by a delta of 0.001. The best model was chosen by the minimal validation loss. 
+
+
+![Validation Loss][image30]
 
 ### Training Strategy
 
@@ -200,20 +208,20 @@ The model used an adam optimizer, with the default learning rate from 0.001.
 
 ##### 1 - First Track
 
-I was able to run the first track without problems by using the provided 8036 driving log lines data. 
+I was able to run the first track without problems by using the provided 8036 driving log lines with a total of 24.102 images. 
 
 ##### 2 - Second Track
 
 On the second track this was a disastrous failure. 
-I recorded two laps in the simulator manuelly in both directions. 
+I recorded two laps in the simulator manually in both directions. 
 The Car stated each time with a sharp turn and hit the barrier between the two roads. 
 ![barrier image][image20]
 
-To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn from the barrier away. After doing this multiple times the car was able to start on the track with out problems. With the two other places on the track where car was leaving the road I copied the process.  
+To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn from the barrier away. After doing this multiple times the car was able to start on the track without problems. With the two other places on the track where car was leaving the road I copied the process.  
 
-At the end my training data contained arround 18000 driving log lines
+At the end my training data contained around 18000 driving log lines with a total of 36.000 images
 
-#### 2. Training Results Frist Track
+#### 2. Training Results First Track
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=qZRkWBB1cFY" target="_blank"><img src="http://img.youtube.com/vi/qZRkWBB1cFY/0.jpg"  alt="First Track" width="720" height="360" border="10" /></a>
 
@@ -221,4 +229,9 @@ At the end my training data contained arround 18000 driving log lines
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=sGO1Qyyn8Xg" target="_blank"><img src="http://img.youtube.com/vi/sGO1Qyyn8Xg/0.jpg" alt="Second Track" width="720" height="360" border="10" /></a>
 
+### Possible Improvements
+
+1. Both models are too complex for that task, so reducing the number of filters or layers could also lead to good results
+2. The model makes a lot of small steering movements, with more data I think the model would be more robust to that
+3. The image augmentation step was very slow a batch of 256 images needed 7 seconds to calculate which was longer than the fit process on the GPU. 
 
