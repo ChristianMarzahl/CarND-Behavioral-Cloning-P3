@@ -1,58 +1,192 @@
-#**Behavioral Cloning** 
-
-##Writeup Template
-
-###You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
-**Behavioral Cloning Project**
-
-The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior
-* Build, a convolution neural network in Keras that predicts steering angles from images
-* Train and validate the model with a training and validation set
-* Test that the model successfully drives around track one without leaving the road
-* Summarize the results with a written report
+# **Behavioral Cloning** 
 
 
 [//]: # (Image References)
 
-[image1]: ./examples/placeholder.png "Model Visualization"
-[image2]: ./examples/placeholder.png "Grayscaling"
-[image3]: ./examples/placeholder_small.png "Recovery Image"
-[image4]: ./examples/placeholder_small.png "Recovery Image"
-[image5]: ./examples/placeholder_small.png "Recovery Image"
-[image6]: ./examples/placeholder_small.png "Normal Image"
-[image7]: ./examples/placeholder_small.png "Flipped Image"
+[image1]: ./examples/biased_dataset.png "Biased Dataset"
+[image2]: ./examples/DataAugmentation2.png "Data Augmentation"
+[image10]: ./examples/unchanged.png "Road Image"
+[image11]: ./examples/bright_image_with_shadow.png "bright image with shadow"
+[image12]: ./examples/bright_shadow.png "bright shadow"
+[image13]: ./examples/dark_image.png "dark image"
+[image14]: ./examples/dark_shadow.png "dark shadow"
+
+[image20]: ./examples/test_2017_04_08_10_57_22_172.png "Problem Image"
+
+[image30]: ./examples/loss_function.png "Loss Function"
+
+[image40]: ./gif/DataAugmentationSlow.gif "Data Augmentation"
 
 ## Rubric Points
 ###Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
 
 ---
-###Files Submitted & Code Quality
+### Files Submitted & Code Quality
 
-####1. Submission includes all required files and can be used to run the simulator in autonomous mode
+#### 1. Submission includes all required files and can be used to run the simulator in autonomous mode
 
 My project includes the following files:
-* model.py containing the script to create and train the model
+* model.py containing the script to create and train the model and performe the data augmentation 
 * drive.py for driving the car in autonomous mode
-* model.h5 containing a trained convolution neural network 
+* final_model.h5 containing a trained convolution neural network 
 * writeup_report.md or writeup_report.pdf summarizing the results
 
-####2. Submission includes functional code
+#### 2. Submission includes functional code
 Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
 ```sh
-python drive.py model.h5
+python drive.py final_model.h5
 ```
 
-####3. Submission code is usable and readable
+#### 3. Submission code
 
-The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works.
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition the file contains the code for the image data generator to argument the training images
 
-###Model Architecture and Training Strategy
+##### 4. ImageDataGenerator 
 
-####1. An appropriate model architecture has been employed
+Tue to memory restriciton and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
+Because the training data is heavily biased towords a centered stering angle as shown in the following image ![Biased Data][image1]. 
+I used a couple of augmentation approaches to compensate for that. 
+
+1. ##### Stering angle histogramm
+I generated from all angles a histogramm with 51 bins. And selected just as many images with with most common stering angle as are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
+
+```python
+        # calculate histogram  
+        hist, bin_edges = np.histogram(np.array(csv_lines[:,3],dtype=float), bins=51, density=False)
+        max_index = np.argmax(hist)
+
+        hist_array = np.sort(hist)[::-1]
+        # select lines with the values arround zero  np.take(zero_list,[1,2,5],axis=1)
+        zero_list = [line for line in lines if float(line[3]) > bin_edges[max_index-1] and float(line[3]) < bin_edges[max_index+1]]
+        index_list = np.random.random_integers(0,hist_array[0]-1,hist_array[1])
+        # take the same number of near zero lines as the second most angle range
+        zero_list = np.take(zero_list,index_list,axis=0)
+        non_zero_list = np.array([line for line in lines if float(line[3]) < bin_edges[max_index-1] or float(line[3]) > bin_edges[max_index+1]])
+```
+
+2. ##### Flip 
+The first track is a circle with a high bias towards left stering angles. By randomly fliping images the effect is filtered out.
+
+```python
+    def random_flipp(self,image,angle):
+        return cv2.flip(image,1), angle * -1
+```
+
+3. ##### Brightness and Shadows
+To make the model more robust to brightness changes and shadows on the road I added two functions to add random brightness and shadows to images.  
+
+![bright image with shadow][image11]
+![bright shadow][image12]
+![dark image][image13]
+![dark shadow][image14]
+
+
+```python
+    def random_brightness(self, image, lower_range = 0.4, upper_range = 0.6):
+
+        brightness_image = np.zeros(image.shape[0:2],np.uint8)
+        if np.random.choice([BrightnessType.Bright,BrightnessType.Dark]) == ShadowType.Bright:
+            brightness_image[:,:] = 255
+
+        brightness_alpha = np.random.uniform(lower_range,upper_range)
+        image[:,:,0] = cv2.addWeighted(image[:,:,0],1. - brightness_alpha,brightness_alpha,brightness_alpha,0)
+        return image 
+        
+    def random_shadow(self, image, alpha_range = 0.2):
+        
+        shadow_image = np.zeros(image.shape[0:2],np.uint8)
+
+        shadow_border_points_count = 4
+        shape_points = np.random.uniform(0,image.shape[0],(shadow_border_points_count,2)).astype(np.int32) + (np.random.randint(0,image.shape[0]),0) 
+        cv2.fillConvexPoly(shadow_image, shape_points, 255)
+
+        if np.random.choice([ShadowType.Bright,ShadowType.Dark]) == ShadowType.Bright:
+            shadow_image = 255 - shadow_image
+        
+        shadow_alpha = np.random.uniform(0,alpha_range)
+        image[:,:,0] = cv2.addWeighted(image[:,:,0],1. - shadow_alpha,shadow_image,shadow_alpha,0)
+
+        return image
+```
+
+4. ##### Left and right Images
+
+Each line in the csv file contains additonaly a left and right camera image. I used this files to additionaly increase my trainig size. 
+For left images the stering angle is increased by 0.25 for right images the angle is decreased by the same factor. 
+
+```python
+                # if the loaded image is a left carmera image increase angle by 0.25
+                if choice == ImageSelector.Left:
+                    if angle + 0.25 > 1:
+                        angle = 1
+                    else: 
+                        angle = angle + 0.25
+                # if the loaded image is a right carmera image deincrease angle by 0.25
+                elif choice == ImageSelector.Right:
+                    if angle - 0.25 < -1:
+                        angle = -1
+                    else: 
+                        angle = angle - 0.25
+```
+
+
+5. ##### Random augmentation selection
+
+Each image is augmentated by up to three augmentation strategies per image. Results are shown in the following gif file.
+
+![Combined Augmentation][image40]
+
+
+```python
+    def select_random_argumentation(self,image, angle):
+        choiceList = rnd.sample([DataArgumentationOptions.Unchanged,
+                             DataArgumentationOptions.Flipp,
+                             DataArgumentationOptions.Brightness,
+                             DataArgumentationOptions.Shadow], rnd.randint(1,3)) 
+                              
+
+        for choice in choiceList:
+            if choice == DataArgumentationOptions.Unchanged:
+                break
+            elif choice == DataArgumentationOptions.Brightness:
+                image = self.random_brightness(image)
+            elif choice == DataArgumentationOptions.Flipp:
+                image, angle = self.random_flipp(image,angle)
+            elif choice == DataArgumentationOptions.Shadow:
+                image = self.random_shadow(image)
+
+        return image, angle
+```
+
+
+
+### Model Architecture and Training Strategy
+
+#### 1. Model architecture
+
+In my attempts to find a model that can well performe on both tracks I tryed some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the diffrent color channel order in the drive.py (RGB vs BGR) I figured out that the used model architeture was not importend and both models were able to run both tracks successfuly.  
+ 
+ 
+ 
+| Layer (type)             |    Output Shape           |   Param  | Hint  |   
+| :-------------: |:-------------:| :-----:| :-----:|
+| Lambda |   | lambda x : (x/255.) -0.5 | Exception add model saving. Not used.  |
+| cropping2d_1 (Cropping2D) |   (None, 65, 318, 3)     |   0     | (70,25) |   
+| conv2d_1 (Conv2D)          |  (None, 17, 80, 16)      |  3088    |  |
+| elu_1 (ELU)               |   (None, 17, 80, 16)      |  0       |  |  
+| conv2d_2 (Conv2D)         |   (None, 9, 40, 32)     |    12832  |   |  
+| elu_2 (ELU)              |    (None, 9, 40, 32)      |   0      |    | 
+| conv2d_3 (Conv2D)         |   (None, 5, 20, 64)    |     51264   |   | 
+| flatten_1 (Flatten)       |   (None, 6400)         |     0      |    | 
+| dropout_1 (Dropout)      |    (None, 6400)         |     0     |    |  
+| elu_3 (ELU)              |    (None, 6400)         |     0     |    |  
+| dense_1 (Dense)          |    (None, 512)          |     3277312 |    | 
+| dropout_2 (Dropout)     |     (None, 512)          |     0     |    |  
+| elu_4 (ELU)             |     (None, 512)          |     0      |   |  
+| dense_2 (Dense)         |     (None, 1)            |     513   |   |   
+
+
+
 
 My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
 
