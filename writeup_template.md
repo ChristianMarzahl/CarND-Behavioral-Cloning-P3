@@ -164,8 +164,7 @@ Each image is augmentated by up to three augmentation strategies per image. Resu
 
 #### 1. Model architecture
 
-In my attempts to find a model that can well performe on both tracks I tryed some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the diffrent color channel order in the drive.py (RGB vs BGR) I figured out that the used model architeture was not importend and both models were able to run both tracks successfuly.  
- 
+In my attempts to find a model that can well performe on both tracks I tryed some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the diffrent color channel order in the drive.py (RGB vs BGR) I figured out that the used model architeture was not importend and both models were able to run both tracks successfuly. Finaly I used the Commaai mode.
  
  
 | Layer (type)             |    Output Shape           |   Param  | Hint  |   
@@ -186,31 +185,40 @@ In my attempts to find a model that can well performe on both tracks I tryed som
 | dense_2 (Dense)         |     (None, 1)            |     513   |   |   
 
 
+#### 2. Overfitting
 
+The model contains dropout layers in order to reduce overfitting. 
 
-My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
+The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be agumented in the Validation mode not. That was used to ensure that the model was not overfitting.
 
-The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18). 
+```python
+        train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
+        validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
+```
 
-####2. Attempts to reduce overfitting in the model
+The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
 
-The model contains dropout layers in order to reduce overfitting (model.py lines 21). 
+#### 3. Model parameter tuning
 
-The model was trained and validated on different data sets to ensure that the model was not overfitting (code line 10-16). The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
+The model used an adam optimizer, with the default learning rate from 0.001.
 
-####3. Model parameter tuning
+### Training Strategy
 
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 25).
+#### 1. Training Data
 
-####4. Appropriate training data
+##### 1 - First Track
 
-Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road ... 
+I was able to run the first track without problems by using the provided data. 
 
-For details about how I created the training data, see the next section. 
+##### 2 - Second Track
 
-###Model Architecture and Training Strategy
+On the second track this was a disastrous fail. 
+I recorded two laps in the simulator manuelly in both directions. 
+The Car stated each time with a sharp turn and hit the barrier between the two roads. 
+![barrier image][image20]
 
-####1. Solution Design Approach
+To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn from the barrier away. After doing this multiple times the car was able to start on the track with out problems. With the two other places on the track where car was leaving the road I copied the process.  
+
 
 The overall strategy for deriving a model architecture was to ...
 
