@@ -185,7 +185,7 @@ In my attempts to find a model that can well perform on both tracks I tried some
 
 #### 2. Overfitting
 
-The model contains dropout layers in order to reduce overfitting. 
+The model contains two dropout layers with a ratio of 20% and 50% in order to reduce overfitting. 
 
 The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be augmented, in the Validation mode not. That was used to ensure that the model was not overfitting.
 
