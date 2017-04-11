@@ -31,17 +31,17 @@ python drive.py final_model.h5
 
 #### 2. Submission code
 
-The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition the file contains the code for the image data generator to augment the training images
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition, the file contains the code for the image data generator to augment the training images
 
 ##### 3. ImageDataGenerator 
 
-Tue to memory restriction and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
-Because the training data is heavily biased towards a centered steering angle as shown in the following image. I used a couple of augmentation approaches to compensate for that. 
+Due to memory restriction and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
+Because the training data is heavily biased towards a centered steering angle, as shown in the following image, I used a couple of augmentation approaches to compensate for that. 
 
 ![Biased Data][image1] 
 
 1. ##### Steering angle histogramm
-I generated from all angles a histogram with 51 bins. And selected just as many images with with most common steering angle as are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
+I generated a histogram with 51 bins from all angles. However, I only selected as many images for the most common steering angle as there are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
 
 ```python
         # calculate histogram  
@@ -66,7 +66,7 @@ The first track is a circle with a high bias towards left steering angles. By ra
 ```
 
 3. ##### Brightness and Shadows
-To make the model more robust to brightness changes and shadows on the road I added two functions to add random brightness and shadows to images.  
+To make the model more robust to brightness changes and shadows on the road I added two functions in order to add random brightness and shadows to images.  
 
 ![bright image with shadow][image11]
 ![bright shadow][image12]
@@ -155,12 +155,15 @@ Each image is augmented by up to three augmentation strategies per image. Result
 
 As recommended by NVIDIA I used the YUV colorspace. 
  
+7. ##### Cropping
+
+To cropp the image to the track in front of the car a Keras cropping layer was added into the model. 
 
 ### Model Architecture and Training Strategy
 
 #### 1. Model architecture
 
-In my attempts to find a model that can well perform on both tracks I tried some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the different color channel order in the drive.py (RGB vs BGR) I figured out that the used model architecture was not important and both models were able to run both tracks successfully. Finally I used the Commaai mode.
+In my attempts to find a model that can perform well on both tracks I tried some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the different color channel order in the drive.py (RGB vs BGR) I figured out that the used model architecture was not important and both models were able to run both tracks successfully. Finally I used the Commaai mode.
  
  
 | Layer (type)             |    Output Shape           |   Param  | Hint  |   
@@ -187,7 +190,7 @@ In my attempts to find a model that can well perform on both tracks I tried some
 
 The model contains two dropout layers with a ratio of 20% and 50% in order to reduce overfitting. 
 
-The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be augmented, in the Validation mode not. That was used to ensure that the model was not overfitting.
+The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be augmented, in the Validation mode they won't. That was used to ensure that the model was not overfitting.
 
 ```python
         train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
@@ -215,10 +218,10 @@ I was able to run the first track without problems by using the provided 8036 dr
 
 On the second track this was a disastrous failure. 
 I recorded two laps in the simulator manually in both directions. 
-The Car stated each time with a sharp turn and hit the barrier between the two roads. 
+Each time the car stated with a sharp turn and hit the barrier between the two roads. 
 ![barrier image][image20]
 
-To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn from the barrier away. After doing this multiple times the car was able to start on the track without problems. With the two other places on the track where car was leaving the road I copied the process.  
+To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn away from the barrier. After doing this multiple times the car was able to start on the track without problems. I copied the process for the other two places on the track where car was leaving the road.  
 
 At the end my training data contained around 18000 driving log lines with a total of 36.000 images
 
@@ -232,7 +235,7 @@ At the end my training data contained around 18000 driving log lines with a tota
 
 ### Possible Improvements
 
-1. Both models are too complex for that task, so reducing the number of filters or layers could also lead to good results
-2. The model makes a lot of small steering movements, with more data I think the model would be more robust to that
-3. The image augmentation step was very slow a batch of 256 images needed 7 seconds to calculate which was longer than the fit process on the GPU. 
+1. Both models are too complex for the task, so reducing the number of filters per layer or the number of layers could also lead to good results
+2. The model makes a lot of small steering movements.I think with more data the model would be more robust regarding this
+3. The image augmentation step was very slow. A batch of 256 images needed 7 seconds to calculate which was longer than the fit process on the GPU. 
 
