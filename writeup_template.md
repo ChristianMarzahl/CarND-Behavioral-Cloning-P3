@@ -198,7 +198,7 @@ The model was tested by running it through the simulator and ensuring that the v
 
 #### 3. Model parameter tuning
 
-The model used an adam optimizer, with the default learning rate from 0.001. The batch size was 128, the samples per epoch are the count of lines in the csv file and teen validation steps are performed after each epoch. The number of epochs was 15 but I used model checkpoints to save the best model and early stopping with a patience of 4 by a delta of 0.001. The best model was chosen by the minimal validation loss. 
+The model used an adam optimizer with Mean Squared Error, with the default learning rate from 0.001. The batch size was 128, the samples per epoch are the count of lines in the csv file and teen validation steps are performed after each epoch. The number of epochs was 15 but I used model checkpoints to save the best model and early stopping with a patience of 4 by a delta of 0.001. The best model was chosen by the minimal validation loss. 
 
 
 ![Validation Loss][image30]
