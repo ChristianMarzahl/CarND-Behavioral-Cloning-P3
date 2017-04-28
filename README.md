@@ -1,118 +1,241 @@
-# Behaviorial Cloning Project
+# **Behavioral Cloning** 
 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-Overview
----
-This repository contains starting files for the Behavioral Cloning Project.
+[//]: # (Image References)
 
-In this project, you will use what you've learned about deep neural networks and convolutional neural networks to clone driving behavior. You will train, validate and test a model using Keras. The model will output a steering angle to an autonomous vehicle.
+[image1]: ./examples/biased_dataset.png "Biased Dataset"
+[image2]: ./examples/DataAugmentation2.png "Data Augmentation"
+[image10]: ./examples/unchanged.png "Road Image"
+[image11]: ./examples/bright_image_with_shadow.png "bright image with shadow"
+[image12]: ./examples/bright_shadow.png "bright shadow"
+[image13]: ./examples/dark_image.png "dark image"
+[image14]: ./examples/dark_shadow.png "dark shadow"
 
-We have provided a simulator where you can steer a car around a track for data collection. You'll use image data and steering angles to train a neural network and then use this model to drive the car autonomously around the track.
+[image20]: ./examples/test_2017_04_08_10_57_22_172.png "Problem Image"
 
-We also want you to create a detailed writeup of the project. Check out the [writeup template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup. The writeup can be either a markdown file or a pdf document.
+[image30]: ./examples/loss_function.png "Loss Function"
 
-To meet specifications, the project will require submitting five files: 
-* model.py (script used to create and train the model)
-* drive.py (script to drive the car - feel free to modify this file)
-* model.h5 (a trained Keras model)
-* a report writeup file (either markdown or pdf)
-* video.mp4 (a video recording of your vehicle driving autonomously around the track for at least one full lap)
+[image40]: ./gif/DataAugmentationSlow.gif "Data Augmentation"
 
-This README file describes how to output the video in the "Details About Files In This Directory" section.
+My project includes the following files:
+* model.py containing the script to create and train the model and performe the data augmentation 
+* drive.py for driving the car in autonomous mode
+* final_model.h5 containing a trained Commaai convolution neural network 
+* writeup_report.md summarizing the results
 
-Creating a Great Writeup
----
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/432/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
-The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior 
-* Design, train and validate a model that predicts a steering angle from image data
-* Use the model to drive the vehicle autonomously around the first track in the simulator. The vehicle should remain on the road for an entire loop around the track.
-* Summarize the results with a written report
-
-### Dependencies
-This lab requires:
-
-* [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit)
-
-The lab enviroment can be created with CarND Term1 Starter Kit. Click [here](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) for the details.
-
-The following resources can be found in this github repository:
-* drive.py
-* video.py
-* writeup_template.md
-
-The simulator can be downloaded from the classroom. In the classroom, we have also provided sample data that you can optionally use to help train your model.
-
-## Details About Files In This Directory
-
-### `drive.py`
-
-Usage of `drive.py` requires you have saved the trained model as an h5 file, i.e. `model.h5`. See the [Keras documentation](https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model) for how to create this file using the following command:
+#### 1. Submission includes functional code
+Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
 ```sh
-model.save(filepath)
+python drive.py final_model.h5
 ```
 
-Once the model has been saved, it can be used with drive.py using this command:
+#### 2. Submission code
 
-```sh
-python drive.py model.h5
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model. In addition, the file contains the code for the image data generator to augment the training images
+
+##### 3. ImageDataGenerator 
+
+Due to memory restriction and efficiency I used the fit_generator and performed the data augmentation as needed and not in advance.
+Because the training data is heavily biased towards a centered steering angle, as shown in the following image, I used a couple of augmentation approaches to compensate for that. 
+
+![Biased Data][image1] 
+
+1. ##### Steering angle histogramm
+I generated a histogram with 51 bins from all angles. However, I only selected as many images for the most common steering angle as there are in the second bin. The effect of this transformation with additional augmentation is shown in the next image. ![Data Augmentation][image2]
+
+```python
+        # calculate histogram  
+        hist, bin_edges = np.histogram(np.array(csv_lines[:,3],dtype=float), bins=51, density=False)
+        max_index = np.argmax(hist)
+
+        hist_array = np.sort(hist)[::-1]
+        # select lines with the values arround zero  np.take(zero_list,[1,2,5],axis=1)
+        zero_list = [line for line in lines if float(line[3]) > bin_edges[max_index-1] and float(line[3]) < bin_edges[max_index+1]]
+        index_list = np.random.random_integers(0,hist_array[0]-1,hist_array[1])
+        # take the same number of near zero lines as the second most angle range
+        zero_list = np.take(zero_list,index_list,axis=0)
+        non_zero_list = np.array([line for line in lines if float(line[3]) < bin_edges[max_index-1] or float(line[3]) > bin_edges[max_index+1]])
 ```
 
-The above command will load the trained model and use the model to make predictions on individual images in real-time and send the predicted angle back to the server via a websocket connection.
+2. ##### Flip 
+The first track is a circle with a high bias towards left steering angles. By randomly flipping images the effect is filtered out.
 
-Note: There is known local system's setting issue with replacing "," with "." when using drive.py. When this happens it can make predicted steering values clipped to max/min values. If this occurs, a known fix for this is to add "export LANG=en_US.utf8" to the bashrc file.
-
-#### Saving a video of the autonomous agent
-
-```sh
-python drive.py model.h5 run1
+```python
+    def random_flipp(self,image,angle):
+        return cv2.flip(image,1), angle * -1
 ```
 
-The fourth argument `run1` is the directory to save the images seen by the agent to. If the directory already exists it'll be overwritten.
+3. ##### Brightness and Shadows
+To make the model more robust to brightness changes and shadows on the road I added two functions in order to add random brightness and shadows to images.  
 
-```sh
-ls run1
+![bright image with shadow][image11]
+![bright shadow][image12]
+![dark image][image13]
+![dark shadow][image14]
 
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_424.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_451.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_477.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_528.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_573.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_618.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_697.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_723.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_749.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_817.jpg
-...
+
+```python
+    def random_brightness(self, image, lower_range = 0.4, upper_range = 0.6):
+
+        brightness_image = np.zeros(image.shape[0:2],np.uint8)
+        if np.random.choice([BrightnessType.Bright,BrightnessType.Dark]) == ShadowType.Bright:
+            brightness_image[:,:] = 255
+
+        brightness_alpha = np.random.uniform(lower_range,upper_range)
+        image[:,:,0] = cv2.addWeighted(image[:,:,0],1. - brightness_alpha,brightness_alpha,brightness_alpha,0)
+        return image 
+        
+    def random_shadow(self, image, alpha_range = 0.2):
+        
+        shadow_image = np.zeros(image.shape[0:2],np.uint8)
+
+        shadow_border_points_count = 4
+        shape_points = np.random.uniform(0,image.shape[0],(shadow_border_points_count,2)).astype(np.int32) + (np.random.randint(0,image.shape[0]),0) 
+        cv2.fillConvexPoly(shadow_image, shape_points, 255)
+
+        if np.random.choice([ShadowType.Bright,ShadowType.Dark]) == ShadowType.Bright:
+            shadow_image = 255 - shadow_image
+        
+        shadow_alpha = np.random.uniform(0,alpha_range)
+        image[:,:,0] = cv2.addWeighted(image[:,:,0],1. - shadow_alpha,shadow_image,shadow_alpha,0)
+
+        return image
 ```
 
-The image file name is a timestamp when the image image was seen. This information is used by `video.py` to create a chronological video of the agent driving.
+4. ##### Left and right Images
 
-### `video.py`
+Each line in the csv file contains a left and right camera image. I used this files to additionally increase my training size. 
+For left images the steering angle is increased by 0.25 for right images the angle is decreased by the same factor. 
 
-```sh
-python video.py run1
+```python
+                # if the loaded image is a left carmera image increase angle by 0.25
+                if choice == ImageSelector.Left:
+                    if angle + 0.25 > 1:
+                        angle = 1
+                    else: 
+                        angle = angle + 0.25
+                # if the loaded image is a right carmera image deincrease angle by 0.25
+                elif choice == ImageSelector.Right:
+                    if angle - 0.25 < -1:
+                        angle = -1
+                    else: 
+                        angle = angle - 0.25
 ```
 
-Create a video based on images found in the `run1` directory. The name of the video will be name of the directory following by `'.mp4'`, so, in this case the video will be `run1.mp4`.
 
-Optionally one can specify the FPS (frames per second) of the video:
+5. ##### Random augmentation selection
 
-```sh
-python video.py run1 --fps 48
+Each image is augmented by up to three augmentation strategies per image. Results are shown in the following gif file.
+
+![Combined Augmentation][image40]
+
+
+```python
+    def select_random_argumentation(self,image, angle):
+        choiceList = rnd.sample([DataArgumentationOptions.Unchanged,
+                             DataArgumentationOptions.Flipp,
+                             DataArgumentationOptions.Brightness,
+                             DataArgumentationOptions.Shadow], rnd.randint(1,3)) 
+                              
+
+        for choice in choiceList:
+            if choice == DataArgumentationOptions.Unchanged:
+                break
+            elif choice == DataArgumentationOptions.Brightness:
+                image = self.random_brightness(image)
+            elif choice == DataArgumentationOptions.Flipp:
+                image, angle = self.random_flipp(image,angle)
+            elif choice == DataArgumentationOptions.Shadow:
+                image = self.random_shadow(image)
+
+        return image, angle
 ```
 
-The video will run at 48 FPS. The default FPS is 60.
+6. ##### Color Space
 
-#### Why create a video
+As recommended by NVIDIA I used the YUV colorspace. 
+ 
+7. ##### Cropping
 
-1. It's been noted the simulator might perform differently based on the hardware. So if your model drives succesfully on your machine it might not on another machine (your reviewer). Saving a video is a solid backup in case this happens.
-2. You could slightly alter the code in `drive.py` and/or `video.py` to create a video of what your model sees after the image is processed (may be helpful for debugging).
+To cropp the image to the track in front of the car a Keras cropping layer was added into the model. 
+
+### Model Architecture and Training Strategy
+
+#### 1. Model architecture
+
+In my attempts to find a model that can perform well on both tracks I tried some models. Starting with the [Commaai Model](https://github.com/commaai/research) and the [NVIDIA Model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/). After proper data augmentation and realising the different color channel order in the drive.py (RGB vs BGR) I figured out that the used model architecture was not important and both models were able to run both tracks successfully. Finally I used the Commaai mode.
+ 
+ 
+| Layer (type)             |    Output Shape           |   Param  | Hint  |   
+| :-------------: |:-------------:| :-----:| :-----:|
+| Lambda |   | lambda x : (x/255.) -0.5 | Exception add model saving. Not used.  |
+| cropping2d_1 (Cropping2D) |   (None, 65, 318, 3)     |   0     | (70,25) |   
+| conv2d_1 (Conv2D)          |  (None, 17, 80, 16)      |  3088    |  |
+| elu_1 (ELU)               |   (None, 17, 80, 16)      |  0       |  |  
+| conv2d_2 (Conv2D)         |   (None, 9, 40, 32)     |    12832  |   |  
+| elu_2 (ELU)              |    (None, 9, 40, 32)      |   0      |    | 
+| conv2d_3 (Conv2D)         |   (None, 5, 20, 64)    |     51264   |   | 
+| flatten_1 (Flatten)       |   (None, 6400)         |     0      |    | 
+| dropout_1 (Dropout)      |    (None, 6400)         |     0     |    |  
+| elu_3 (ELU)              |    (None, 6400)         |     0     |    |  
+| dense_1 (Dense)          |    (None, 512)          |     3277312 |    | 
+| dropout_2 (Dropout)     |     (None, 512)          |     0     |    |  
+| elu_4 (ELU)             |     (None, 512)          |     0      |   |  
+| dense_2 (Dense)         |     (None, 1)            |     513   |   |   
+
+
+
+
+#### 2. Overfitting
+
+The model contains two dropout layers with a ratio of 20% and 50% in order to reduce overfitting. 
+
+The model was trained and validated on different image generator configurations. If the Train argument is passed the images will be augmented, in the Validation mode they won't. That was used to ensure that the model was not overfitting.
+
+```python
+        train_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Train)
+        validation_generator = ImageDataGenerator(lines,ImageDataGeneratorMode.Validation)
+```
+
+The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
+
+#### 3. Model parameter tuning
+
+The model used an adam optimizer with Mean Squared Error, with the default learning rate from 0.001. The batch size was 128, the samples per epoch are the count of lines in the csv file and teen validation steps are performed after each epoch. The number of epochs was 15 but I used model checkpoints to save the best model and early stopping with a patience of 4 by a delta of 0.001. The best model was chosen by the minimal validation loss. 
+
+
+![Validation Loss][image30]
+
+### Training Strategy
+
+#### 1. Training Data
+
+##### 1 - First Track
+
+I was able to run the first track without problems by using the provided 8036 driving log lines with a total of 24.102 images. 
+
+##### 2 - Second Track
+
+On the second track this was a disastrous failure. 
+I recorded two laps in the simulator manually in both directions. 
+Each time the car stated with a sharp turn and hit the barrier between the two roads. 
+![barrier image][image20]
+
+To overcome this behavior I placed the car in front of the barrier and performed a recorded sharp turn away from the barrier. After doing this multiple times the car was able to start on the track without problems. I copied the process for the other two places on the track where car was leaving the road.  
+
+At the end my training data contained around 18000 driving log lines with a total of 36.000 images
+
+#### 2. Training Results First Track
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=qZRkWBB1cFY" target="_blank"><img src="http://img.youtube.com/vi/qZRkWBB1cFY/0.jpg"  alt="First Track" width="720" height="360" border="10" /></a>
+
+#### 2. Training Results Second Track
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=sGO1Qyyn8Xg" target="_blank"><img src="http://img.youtube.com/vi/sGO1Qyyn8Xg/0.jpg" alt="Second Track" width="720" height="360" border="10" /></a>
+
+### Possible Improvements
+
+1. Both models are too complex for the task, so reducing the number of filters per layer or the number of layers could also lead to good results
+2. The model makes a lot of small steering movements.I think with more data the model would be more robust regarding this
+3. The image augmentation step was very slow. A batch of 256 images needed 7 seconds to calculate which was longer than the fit process on the GPU. 
+
